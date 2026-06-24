@@ -1,8 +1,8 @@
 from app.worker import celery_app
 from app.db.session import SessionLocal
-from app.models.cv import CVFile
-from app.models.job import JobListing
-from app.models.match_score import JobMatchScore
+from app.models import CVFile
+from app.models import JobListing
+from app.models import JobMatchScore
 from app.services.ai_scorer import evaluate_match
 import logging
 

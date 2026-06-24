@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchStats, triggerAutoApply } from '../api/jobs';
+import { fetchStats, triggerAutoApply, fetchRapidApiJobs } from '../api/jobs';
 import { useAuthStore } from '../store/authStore';
 import {
   User, Mail, Shield, Calendar, Briefcase,
@@ -173,7 +173,20 @@ export default function Dashboard() {
                   }
                 }
               },
-              { title: 'View Applications', desc: 'Track the status of all submitted jobs', color: 'emerald', action: () => navigate('/applications') },
+              { 
+                title: 'Sync Jobs via API', 
+                desc: 'Fetch new jobs from LinkedIn & Indeed via RapidAPI', 
+                color: 'emerald', 
+                action: async () => {
+                  try {
+                    await fetchRapidApiJobs("software engineer");
+                    showToast('Job sync started in the background!');
+                  } catch (e) {
+                    showToast('Failed to start job sync. Is RapidAPI Key set?');
+                  }
+                }
+              },
+              { title: 'View Applications', desc: 'Track the status of all submitted jobs', color: 'blue', action: () => navigate('/applications') },
             ].map(({ title, desc, color, action }) => (
               <button
                 key={title}

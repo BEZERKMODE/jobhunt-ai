@@ -5,8 +5,8 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models.user import User
-from app.schemas.user import TokenPayload
+from app.models import User
+from app.schemas import TokenResponse
 
 def get_db() -> Generator:
     try:
@@ -39,13 +39,13 @@ def get_current_user(
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        token_data = TokenPayload(**payload)
-        if token_data.type != "access":
+        token_data = payload
+        if token_data.get("type") != "access":
             raise credentials_exception
     except JWTError:
         raise credentials_exception
         
-    user = db.query(User).filter(User.id == token_data.sub).first()
+    user = db.query(User).filter(User.id == token_data.get("sub")).first()
     if not user:
         raise credentials_exception
     return user
@@ -70,8 +70,8 @@ def get_optional_user(
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        token_data = TokenPayload(**payload)
-        user = db.query(User).filter(User.id == token_data.sub).first()
+        token_data = payload
+        user = db.query(User).filter(User.id == token_data.get("sub")).first()
         return user
     except Exception:
         return None

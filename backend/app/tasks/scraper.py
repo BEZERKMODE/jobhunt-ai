@@ -1,7 +1,7 @@
 import httpx
 from app.worker import celery_app
 from app.db.session import SessionLocal
-from app.models.job import JobListing
+from app.models import JobListing
 import logging
 
 logger = logging.getLogger(__name__)
@@ -132,3 +132,69 @@ def scrape_indeed_task(query: str = "remote software engineer", limit: int = 5):
     count = loop.run_until_complete(run_scraper())
     logger.info(f"Indeed scrape completed. Saved {count} jobs.")
     return f"Indeed Scraped and saved {count} jobs"
+
+@celery_app.task(name="app.tasks.scraper.fetch_rapidapi_jobs_task")
+def fetch_rapidapi_jobs_task(query: str = "software engineer", page: int = 1):
+    """
+    Scraper task to fetch real jobs from JSearch API via RapidAPI.
+    This gives access to LinkedIn, Indeed, Glassdoor, etc.
+    """
+    import os
+    logger.info(f"Starting RapidAPI JSearch for query: {query}")
+    
+    api_key = os.getenv("RAPIDAPI_KEY")
+    if not api_key:
+        logger.error("RAPIDAPI_KEY is not set in environment variables.")
+        return "Failed: Missing RAPIDAPI_KEY"
+        
+    url = "https://jsearch.p.rapidapi.com/search"
+    querystring = {"query": query, "page": str(page), "num_pages": "1"}
+    
+    headers = {
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": "jsearch.p.rapidapi.com"
+    }
+    
+    try:
+        response = httpx.get(url, headers=headers, params=querystring, timeout=15.0)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as e:
+        logger.error(f"Failed to fetch jobs from RapidAPI: {e}")
+        return f"Failed: {e}"
+        
+    jobs_data = data.get("data", [])
+    
+    db = SessionLocal()
+    saved_count = 0
+    try:
+        for item in jobs_data:
+            job_url = item.get("job_apply_link")
+            if not job_url:
+                continue
+                
+            # Check if url already exists
+            existing = db.query(JobListing).filter(JobListing.url == job_url).first()
+            if not existing:
+                job = JobListing(
+                    title=item.get("job_title", "Unknown Title")[:200],
+                    company=item.get("employer_name", "Unknown Company")[:200],
+                    location=item.get("job_city", "") + " " + item.get("job_country", "") if item.get("job_city") else "Remote",
+                    type=item.get("job_employment_type", "Full-time"),
+                    source=item.get("job_publisher", "JSearch"),
+                    description=item.get("job_description", "")[:1000],
+                    url=job_url,
+                    salary=None
+                )
+                db.add(job)
+                saved_count += 1
+                
+        db.commit()
+        logger.info(f"Successfully fetched and saved {saved_count} jobs from RapidAPI.")
+    except Exception as e:
+        logger.error(f"Error saving RapidAPI jobs to DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
+        
+    return f"Fetched and saved {saved_count} jobs from RapidAPI"

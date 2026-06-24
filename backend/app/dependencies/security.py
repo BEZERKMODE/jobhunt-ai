@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from app.dependencies import get_current_user
-from app.models.user import UserRole
+from app.models import UserRole
 
 def is_admin(_: None = Depends(get_current_user)) -> None:
     # This dependency ensures the current user is an admin.

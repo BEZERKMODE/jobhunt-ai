@@ -1,10 +1,8 @@
 import logging
 import asyncio
 from playwright.async_api import async_playwright
-from app.models.application import ApplicationStatus
-from app.models.job import JobListing
-from app.models.application import Application
-from app.models.user import User
+from app.schemas import ApplicationStatus
+from app.models import JobListing, Application, User
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +15,10 @@ class AutoApplyEngine:
         self.application_id = application_id
         self.db = db_session
         
-    async def run(self):
+    async def run(self, dry_run: bool = True):
         """
         Executes the auto-apply pipeline using Playwright.
+        If dry_run is True, it will fill the form but skip clicking the submit button.
         """
         logger.info(f"Starting auto-apply pipeline for Application {self.application_id}")
         
@@ -82,9 +81,17 @@ class AutoApplyEngine:
                         except Exception:
                             pass
                 
-                logger.info("Form filled. Stopping before submission.")
-                # We stop before submitting to prevent actual spamming in this prototype.
-                # await page.click("button[type='submit']")
+                if dry_run:
+                    logger.info("Form filled. Dry run enabled: Stopping before submission.")
+                else:
+                    logger.info("Submitting form...")
+                    try:
+                        submit_btn = page.locator("button[type='submit'], input[type='submit']").first
+                        if await submit_btn.count() > 0:
+                            await submit_btn.click()
+                            await page.wait_for_timeout(3000)
+                    except Exception as e:
+                        logger.error(f"Failed to click submit: {e}")
                 
                 await browser.close()
                 

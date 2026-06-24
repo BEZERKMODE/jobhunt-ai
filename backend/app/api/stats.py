@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.models.job import JobListing
-from app.models.cv import CVFile
-from app.models.application import Application
+from app.models import JobListing
+from app.models import CVFile
+from app.models import Application
 
 router = APIRouter()
 

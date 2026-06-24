@@ -1,35 +1,46 @@
-from typing import List, Union
 from pydantic_settings import BaseSettings
+from typing import Optional
+
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "JobHunt AI"
-    API_V1_STR: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
-    
-    POSTGRES_SERVER: str = "localhost"
+    # App
+    APP_NAME: str = "JobHunt AI"
+    DEBUG: bool = False
+    API_V1_PREFIX: str = "/api/v1"
+
+    # Database
+    POSTGRES_SERVER: str = "db"
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "password"
+    POSTGRES_PASSWORD: str = "123456"
     POSTGRES_DB: str = "jobhunt"
-    
-    REDIS_URL: str = "redis://localhost:6379/0"
-    
-    GEMINI_API_KEY: str = ""
-    
-    # Auth settings
-    SECRET_KEY: str = "YOUR_SUPER_SECRET_KEY_CHANGE_THIS_IN_PROD"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    JWT_SECRET_KEY: str = "YOUR_JWT_SECRET_KEY_CHANGE_THIS_IN_PROD"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> str:
-        return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}/{self.POSTGRES_DB}"
-        
+    def DATABASE_URL(self) -> str:
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_SERVER}/{self.POSTGRES_DB}"
+        )
+
+    # Redis / Celery
+    REDIS_URL: str = "redis://redis:6379/0"
+
+    # Auth
+    SECRET_KEY: str = "supersecretkeyhere-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+
+    # AI
+    ANTHROPIC_API_KEY: str = ""
+
+    # Observability
+    SENTRY_DSN: Optional[str] = None
+
+    # CORS
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
     class Config:
+        env_file = ".env"
         case_sensitive = True
+
 
 settings = Settings()

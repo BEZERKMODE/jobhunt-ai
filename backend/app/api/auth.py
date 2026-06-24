@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, Token
+from app.models import User
+from app.schemas import UserRegister as UserCreate, UserOut as UserResponse, TokenResponse as Token
 from jose import jwt, JWTError
 
 router = APIRouter()

@@ -70,3 +70,12 @@ export async function triggerAutoApply(): Promise<{ status: string }> {
   if (!resp.ok) throw new Error('Failed to trigger auto apply');
   return resp.json();
 }
+
+export async function fetchRapidApiJobs(query: string = "software engineer"): Promise<{ status: string }> {
+  const resp = await fetch(`/api/v1/jobs/fetch-jobs?query=${encodeURIComponent(query)}`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!resp.ok) throw new Error('Failed to fetch from RapidAPI');
+  return resp.json();
+}
