@@ -2,7 +2,7 @@ import logging
 import asyncio
 from app.worker import celery_app
 from app.db.session import SessionLocal
-from app.models import User, JobListing, JobMatchScore, Application
+from app.models import User, Job, JobMatchScore, Application
 from app.schemas import ApplicationStatus
 from app.services.auto_apply import AutoApplyEngine
 

@@ -1,7 +1,7 @@
 import httpx
 from app.worker import celery_app
 from app.db.session import SessionLocal
-from app.models import JobListing
+from app.models import Job
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,21 +30,22 @@ def scrape_jobs_task(limit: int = 20):
     try:
         for item in jobs_data:
             # Check if url already exists
-            existing = db.query(JobListing).filter(JobListing.url == item.get("url")).first()
+            existing = db.query(Job).filter(Job.url == item.get("url")).first()
             if not existing:
                 # Truncate description if necessary or clean HTML
                 import re
                 clean_desc = re.sub(r'<[^>]+>', '', item.get("description", ""))
                 
-                job = JobListing(
+                job = Job(
                     title=item.get("title")[:200],
                     company=item.get("company_name")[:200],
                     location=item.get("candidate_required_location", "Remote"),
-                    type=item.get("job_type", "Full-time"),
+                    job_type=item.get("job_type", "Full-time"),
                     source="Remotive",
                     description=clean_desc[:1000] + ("..." if len(clean_desc) > 1000 else ""),
                     url=item.get("url"),
-                    salary=None # Remotive sometimes returns salary as string, skipping for simplicity
+                    salary_min=None,
+                    salary_max=None
                 )
                 db.add(job)
                 saved_count += 1
@@ -101,16 +102,18 @@ def scrape_indeed_task(query: str = "remote software engineer", limit: int = 5):
                         href = await link_loc.get_attribute("href") if await link_loc.count() > 0 else f"/viewjob?jk={idx}"
                         full_url = f"https://www.indeed.com{href}" if href.startswith("/") else href
                         
-                        existing = db.query(JobListing).filter(JobListing.url == full_url).first()
+                        existing = db.query(Job).filter(Job.url == full_url).first()
                         if not existing:
-                            job = JobListing(
+                            job = Job(
                                 title=title[:200],
                                 company=company[:200],
                                 location=location,
-                                type="Full-time",
+                                job_type="Full-time",
                                 source="Indeed",
                                 description=f"Job found via Indeed search: {query}",
-                                url=full_url
+                                url=full_url,
+                                salary_min=None,
+                                salary_max=None
                             )
                             db.add(job)
                             saved_count += 1
@@ -174,17 +177,18 @@ def fetch_rapidapi_jobs_task(query: str = "software engineer", page: int = 1):
                 continue
                 
             # Check if url already exists
-            existing = db.query(JobListing).filter(JobListing.url == job_url).first()
+            existing = db.query(Job).filter(Job.url == job_url).first()
             if not existing:
-                job = JobListing(
+                job = Job(
                     title=item.get("job_title", "Unknown Title")[:200],
                     company=item.get("employer_name", "Unknown Company")[:200],
                     location=item.get("job_city", "") + " " + item.get("job_country", "") if item.get("job_city") else "Remote",
-                    type=item.get("job_employment_type", "Full-time"),
+                    job_type=item.get("job_employment_type", "Full-time"),
                     source=item.get("job_publisher", "JSearch"),
                     description=item.get("job_description", "")[:1000],
                     url=job_url,
-                    salary=None
+                    salary_min=None,
+                    salary_max=None
                 )
                 db.add(job)
                 saved_count += 1

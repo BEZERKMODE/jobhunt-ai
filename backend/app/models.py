@@ -35,6 +35,7 @@ class User(Base):
 
     cvs = relationship("CV", back_populates="user", cascade="all, delete-orphan")
     applications = relationship("Application", back_populates="user", cascade="all, delete-orphan")
+    match_scores = relationship("JobMatchScore", back_populates="user", cascade="all, delete-orphan")
 
 
 class CV(Base):
@@ -71,6 +72,7 @@ class Job(Base):
     raw_data = Column(JSONB, default=dict)
 
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
+    match_scores = relationship("JobMatchScore", back_populates="job", cascade="all, delete-orphan")
 
 
 class Application(Base):
@@ -94,3 +96,18 @@ class Application(Base):
 
     user = relationship("User", back_populates="applications")
     job = relationship("Job", back_populates="applications")
+
+
+class JobMatchScore(Base):
+    __tablename__ = "job_match_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    score = Column(Float, nullable=False, default=0.0)
+    verdict = Column(String(255), nullable=True)
+    missing_skills = Column(JSONB, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="match_scores")
+    job = relationship("Job", back_populates="match_scores")

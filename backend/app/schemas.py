@@ -112,6 +112,12 @@ class ApplicationStatus(str, Enum):
     offer = "offer"
 
 
+class ApplicationCreate(BaseModel):
+    job_id: int
+    cover_letter: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class ApplicationOut(BaseModel):
     id: int
     job_id: int

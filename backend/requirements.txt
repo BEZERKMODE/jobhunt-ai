@@ -16,6 +16,7 @@ slowapi==0.1.9
 # Async HTTP (for LLM calls)
 httpx==0.27.0
 anyio==4.3.0
+anthropic>=0.28.0
 
 # Task Queue
 celery==5.3.6

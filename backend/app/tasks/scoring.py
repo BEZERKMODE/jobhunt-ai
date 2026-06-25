@@ -1,9 +1,11 @@
 from app.worker import celery_app
 from app.db.session import SessionLocal
-from app.models import CVFile
-from app.models import JobListing
-from app.models import JobMatchScore
-from app.services.ai_scorer import evaluate_match
+from app.models import CV, Job, JobMatchScore
+from app.services.ai_scorer import evaluate_match, llm_score_resume_against_job
+import asyncio
+import json
+from app.core.redis import redis_sync
+from app.models import Application
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ def score_cv_against_jobs_task(cv_id: str, user_id: str):
 
         
         # Get jobs to score against (e.g. all jobs, or active jobs)
-        jobs = db.query(JobListing).limit(10).all()
+        jobs = db.query(Job).limit(10).all()
         
         for job in jobs:
             result = evaluate_match(cv_text, job.description)
@@ -56,5 +58,42 @@ def score_cv_against_jobs_task(cv_id: str, user_id: str):
     except Exception as e:
         logger.error(f"Error scoring CV {cv_id}: {e}")
         db.rollback()
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def score_job_against_cv(self, job_id: int, user_id: int):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        cv = db.query(CV).filter(CV.user_id == user_id).first()
+        if not job or not cv:
+            return
+
+        result = asyncio.run(
+            llm_score_resume_against_job(cv.text_content or "", job.description or "")
+        )
+
+        # Store enriched result on Application if exists
+        apprec = db.query(Application).filter(
+            Application.job_id == job_id, Application.user_id == user_id
+        ).first()
+        if apprec:
+            apprec.match_score = result.get("match_score")
+            apprec.ai_analysis = result
+            apprec.cover_letter = result.get("cover_letter_draft")
+            db.commit()
+
+        # publish a task update to Redis so front-end can receive via WS
+        try:
+            payload = json.dumps({"type": "score_complete", "job_id": job_id, "score": result.get("match_score")})
+            redis_sync.publish(f"task_updates:{user_id}", payload)
+        except Exception:
+            logger.exception("failed_to_publish_score_update")
+
+    except Exception as exc:
+        db.rollback()
+        raise self.retry(exc=exc)
     finally:
         db.close()

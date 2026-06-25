@@ -2,7 +2,7 @@ import logging
 import asyncio
 from playwright.async_api import async_playwright
 from app.schemas import ApplicationStatus
-from app.models import JobListing, Application, User
+from app.models import Job, Application, User
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class AutoApplyEngine:
             logger.error("Application not found.")
             return False
             
-        job = self.db.query(JobListing).filter(JobListing.id == application.job_id).first()
+        job = self.db.query(Job).filter(Job.id == application.job_id).first()
         user = self.db.query(User).filter(User.id == application.user_id).first()
         
         if not job or not job.url:
